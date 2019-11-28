@@ -57,7 +57,12 @@ public class Index
 
     private static final List<Item> ITEMS = CollectionFactory
             .newList(
-                    new Item("ZoneFormDemo", "Zone Form Decoration", "Fields inside an Ajax-updatd Form are still decorated properly."),
+                    
+                    new Item("PublishEventDemo", "@PublishEvent Demo", "Publishing server-side events to client-side code (JavaScript)"),
+                    
+                    new Item("Html5DateFieldDemo", "Html5DateField Demo", "Choosing dates using the native HTML5 date picker"),
+
+//                    new Item("ZoneFormDemo", "Zone Form Decoration", "Fields inside an Ajax-updatd Form are still decorated properly."),
 
                     new Item("AjaxValidationDemo", "Ajax Validation", "Demonstrated proper integration of server-side validation and client-side field decoration."),
 
@@ -596,12 +601,23 @@ public class Index
 
                     new Item("textfieldwithnullvalidateparameter", "TextField with null validate parameter", "A TextField whose validate parameter is bound to null"),
 
+                    new Item("validateCheckboxMustBeChecked", "Validate Checkbox Must Be Checked", "A form that trigger validate in " +
+                            "error event on submit when checkbox is not checked"),
+
+                    new Item("validateCheckboxMustBeUnchecked", "Validate Checkbox Must Be Unchecked", "A form that trigger validate in " +
+                    		"error event on submit when checkbox is checked"),
+                    
                     new Item("validateInErrorEvent", "Validate in error Event", "A form that trigger validate in " +
                             "error event on submit when textfield is empty"),
 
                     new Item("onactivateredirect", "OnActivateRedirect Demo", "A page that redirects to itself from"
-                        + " its activation method")
+                        + " its activation method"),
 
+                    new Item("BeanEditorWithFormFragmentDemo", "Bean Editor With Form Fragment Demo", "TriggerFragment mixin used inside a BeanEditor"),
+
+                    new Item("ObjectEditorDemo","Object Editor Demo","Edit Bean with address objects"),
+                    
+                    new Item("IfDemo","If Demo","If component with all its options")
                 );
 
     static

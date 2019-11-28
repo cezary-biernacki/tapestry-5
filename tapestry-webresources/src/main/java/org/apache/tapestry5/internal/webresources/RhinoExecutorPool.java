@@ -17,10 +17,8 @@ package org.apache.tapestry5.internal.webresources;
 import org.apache.tapestry5.ioc.Invokable;
 import org.apache.tapestry5.ioc.OperationTracker;
 import org.apache.tapestry5.ioc.Resource;
-import org.apache.tapestry5.ioc.internal.util.CollectionFactory;
 import org.apache.tapestry5.ioc.internal.util.InternalUtils;
 import org.apache.tapestry5.ioc.util.ExceptionUtils;
-import org.apache.tapestry5.ioc.util.Stack;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ContextFactory;
 import org.mozilla.javascript.NativeFunction;
@@ -30,7 +28,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Manages a pool of initialized {@link RhinoExecutor} instances.  The instances are initialized for a particular
@@ -41,14 +42,22 @@ public class RhinoExecutorPool
 
     private final List<Resource> scripts;
 
-    private final Stack<RhinoExecutor> executors = CollectionFactory.newStack();
+    private final Queue<RhinoExecutor> executors = new ConcurrentLinkedQueue<RhinoExecutor>();
 
     private final ContextFactory contextFactory = new ContextFactory();
 
+    private final int languageVersion;
+
     public RhinoExecutorPool(OperationTracker tracker, List<Resource> scripts)
+    {
+        this(tracker, scripts, Context.VERSION_DEFAULT);
+    }
+
+    public RhinoExecutorPool(OperationTracker tracker, List<Resource> scripts, int languageVersion)
     {
         this.tracker = tracker;
         this.scripts = scripts;
+        this.languageVersion = languageVersion;
     }
 
     /**
@@ -57,20 +66,21 @@ public class RhinoExecutorPool
      *
      * @return executor
      */
-    public synchronized RhinoExecutor get()
+    public RhinoExecutor get()
     {
 
-        if (executors.isEmpty())
+        RhinoExecutor executor = executors.poll();
+        if (executor != null)
         {
-            return createExecutor();
+            return executor;
         }
 
-        return executors.pop();
+        return createExecutor();
     }
 
-    private synchronized void put(RhinoExecutor executor)
+    private void put(RhinoExecutor executor)
     {
-        executors.push(executor);
+        executors.add(executor);
     }
 
     private RhinoExecutor createExecutor()
@@ -89,6 +99,7 @@ public class RhinoExecutorPool
                         try
                         {
                             context.setOptimizationLevel(-1);
+                            context.setLanguageVersion(languageVersion);
 
                             for (Resource script : scripts)
                             {
@@ -142,7 +153,7 @@ public class RhinoExecutorPool
                         try
                         {
                             in = script.openStream();
-                            r = new InputStreamReader(in);
+                            r = new InputStreamReader(in, StandardCharsets.UTF_8);
 
                             context.evaluateReader(scope, r, script.toString(), 1, null);
                         } catch (IOException ex)

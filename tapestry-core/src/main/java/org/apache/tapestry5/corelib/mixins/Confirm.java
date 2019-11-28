@@ -23,10 +23,6 @@ import org.apache.tapestry5.services.javascript.JavaScriptSupport;
  * A mixin that can be placed on a clickable component, such as {@link org.apache.tapestry5.corelib.components.LinkSubmit},
  * and will raise a confirmation dialog when the element is clicked.
  *
- * Due to conflicts between jQuery (as used by Bootstrap's JavaScript library) and Prototype, this mixin does not operate
- * when the {@linkplain org.apache.tapestry5.SymbolConstants#JAVASCRIPT_INFRASTRUCTURE_PROVIDER JavaScript infrastructure provider}
- * is "prototype".
- *
  * @tapestrydoc
  * @since 5.4
  */
@@ -53,6 +49,12 @@ public class Confirm
 
     @Environmental
     private JavaScriptSupport javaScriptSupport;
+    
+    /*
+     * The CSS class for the ok button
+     */
+    @Parameter(defaultPrefix = BindingConstants.LITERAL)
+    private String okClass;
 
     /**
      * The label for the ok button.
@@ -74,6 +76,7 @@ public class Confirm
 
             writer.attributes("data-confirm-title", title,
                     "data-confirm-message", message,
+                    "data-confirm-class-ok", okClass,
                     "data-confirm-label-ok", ok,
                     "data-confirm-label-cancel", cancel);
         }

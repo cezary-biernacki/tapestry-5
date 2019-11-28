@@ -32,7 +32,12 @@ define ["./dom", "./events", "./messages", "./ajax", "underscore", "./datepicker
     days.push days.shift()
 
     monthsLabels = (messages "date-symbols.months").split ","
-    daysLabels = _.map days, (name) -> name.substr(0, 1).toLowerCase()
+    abbreviateWeekDay = (name) -> name.substr(0, 1).toLowerCase()
+    locale = (document.documentElement.getAttribute("data-locale")) || "en"
+    if (locale.indexOf 'zh') is 0
+      # TAP5-1886, Chinese weekdays cannot be abbreviated using the first character
+      abbreviateWeekDay = (name) -> name.substr(name.length-1)
+    daysLabels = (abbreviateWeekDay name for name in days)
     todayLabel = messages "core-datefield-today"
     noneLabel = messages "core-datefield-none"
 
@@ -55,7 +60,7 @@ define ["./dom", "./events", "./messages", "./ajax", "underscore", "./datepicker
 
     class Controller
       constructor: (@container) ->
-        @field = @container.findFirst "input"
+        @field = @container.findFirst 'input:not([name="t:formdata"])'
         @trigger = @container.findFirst "button"
 
         @trigger.on "click", =>
@@ -108,9 +113,9 @@ define ["./dom", "./events", "./messages", "./ajax", "underscore", "./datepicker
 
             if reply.result
               @clearFieldError()
+              [year, month, day] = reply.result.split '-'
 
-              date = new Date()
-              date.setTime reply.result
+              date = new Date year, month-1, day
               @datePicker.setDate date
 
             if reply.error
@@ -149,10 +154,10 @@ define ["./dom", "./events", "./messages", "./ajax", "underscore", "./datepicker
 
         @field.addClass "ajax-wait"
 
-
+        normalizedFormat = "#{date.getFullYear()}-#{date.getMonth()+1}-#{date.getDate()}"
         ajax (@container.attr "data-format-url"),
           data:
-            input: date.getTime()
+            input: normalizedFormat
           failure: (response, message) =>
             @field.removeClass "ajax-wait"
             @fieldError message

@@ -26,6 +26,7 @@ import org.apache.tapestry5.services.javascript.JavaScriptAggregationStrategy;
 import org.apache.tapestry5.services.javascript.ModuleManager;
 
 import java.io.*;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,7 +52,7 @@ public class JavaScriptStackAssemblerImpl implements JavaScriptStackAssembler
 
     private final boolean minificationEnabled;
 
-    private final Map<String, StreamableResource> cache = CollectionFactory.newCaseInsensitiveMap();
+    private final Map<String, StreamableResource> cache = Collections.synchronizedMap(CollectionFactory.<StreamableResource>newCaseInsensitiveMap());
 
     private class Parameters
     {
@@ -162,9 +163,9 @@ public class JavaScriptStackAssemblerImpl implements JavaScriptStackAssembler
         }
     };
 
-    private final static Pattern DEFINE = Pattern.compile("\\bdefine\\s*\\(");
+    private final static Pattern DEFINE = Pattern.compile("\\bdefine\\s*\\((?!\\s*['\"])");
 
-    private class ModuleReader implements StreamableReader
+    private static class ModuleReader implements StreamableReader
     {
         final String moduleName;
 
@@ -177,7 +178,12 @@ public class JavaScriptStackAssemblerImpl implements JavaScriptStackAssembler
         {
             String content = getContent(resource);
 
-            return DEFINE.matcher(content).replaceFirst("define(\"" + moduleName + "\",");
+            return transform(content);
+        }
+
+        public String transform(String moduleContent)
+        {
+            return DEFINE.matcher(moduleContent).replaceFirst("define(\"" + moduleName + "\",");
         }
     }
 

@@ -18,12 +18,15 @@ import org.apache.tapestry5.corelib.base.AbstractField;
 import org.apache.tapestry5.corelib.data.BlankOption;
 import org.apache.tapestry5.corelib.data.SecureOption;
 import org.apache.tapestry5.corelib.mixins.RenderDisabled;
+import org.apache.tapestry5.internal.AbstractEventContext;
+import org.apache.tapestry5.internal.InternalComponentResources;
 import org.apache.tapestry5.internal.TapestryInternalUtils;
 import org.apache.tapestry5.internal.util.CaptureResultCallback;
 import org.apache.tapestry5.internal.util.SelectModelRenderer;
 import org.apache.tapestry5.ioc.Messages;
 import org.apache.tapestry5.ioc.annotations.Inject;
 import org.apache.tapestry5.ioc.internal.util.InternalUtils;
+import org.apache.tapestry5.ioc.services.TypeCoercer;
 import org.apache.tapestry5.services.*;
 import org.apache.tapestry5.services.javascript.JavaScriptSupport;
 import org.apache.tapestry5.util.EnumSelectModel;
@@ -173,6 +176,9 @@ public class Select extends AbstractField
     @Inject
     private JavaScriptSupport javascriptSupport;
 
+    @Inject
+    private TypeCoercer typeCoercer;
+
     @SuppressWarnings("unused")
     @Mixin
     private RenderDisabled renderDisabled;
@@ -258,7 +264,7 @@ public class Select extends AbstractField
         }
     }
 
-    Object onChange(final List<Context> context,
+    Object onChange(final EventContext context,
                     @RequestParameter(value = "t:selectvalue", allowBlank = true) final String selectValue)
             throws ValidationException
     {
@@ -266,15 +272,25 @@ public class Select extends AbstractField
 
         CaptureResultCallback<Object> callback = new CaptureResultCallback<Object>();
 
-        Object[] newContext = new Object[context.size() + 1];
-        newContext[0] = newValue;
-        for (int i = 1; i < newContext.length; i++)
-        {
-            newContext[i] = context.get(i - 1);
-        }
 
+        EventContext newContext = new AbstractEventContext() {
 
-        this.resources.triggerEvent(EventConstants.VALUE_CHANGED, newContext, callback);
+          @Override
+          public int getCount() {
+            return context.getCount() + 1;
+          }
+
+          @Override
+          public <T> T get(Class<T> desiredType, int index) {
+            if (index == 0)
+            {
+                return typeCoercer.coerce(newValue, desiredType);
+            }
+            return context.get(desiredType, index-1);
+          }
+        };
+
+        this.resources.triggerContextEvent(EventConstants.VALUE_CHANGED, newContext, callback);
 
         this.value = newValue;
 
@@ -289,13 +305,16 @@ public class Select extends AbstractField
         }
 
         // can we skip the check for the value being in the model?
-        if (secure == SecureOption.NEVER || (secure == SecureOption.AUTO && model == null))
+
+        SelectModel selectModel = typeCoercer.coerce(((InternalComponentResources) resources)
+            .getBinding("model").get(), SelectModel.class);
+        if (secure == SecureOption.NEVER || (secure == SecureOption.AUTO && selectModel == null))
         {
             return encoder.toValue(submittedValue);
         }
 
         // for entity types the SelectModel may be unintentionally null when the form is submitted
-        if (model == null)
+        if (selectModel == null)
         {
             throw new ValidationException("Model is null when validating submitted option." +
                     " To fix: persist the SeletModel or recreate it upon form submission," +

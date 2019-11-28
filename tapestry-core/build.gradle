@@ -19,7 +19,7 @@ dependencies {
     provided project(":tapestry-test")
     provided project(":tapestry-test-constants")
 
-    provided "javax.servlet:servlet-api:${versions.servletapi}"
+    provided "javax.servlet:javax.servlet-api:${versions.servletapi}"
 
     compile "commons-codec:commons-codec:1.10"
 
@@ -63,4 +63,45 @@ jar {
     from("src/main/filtered-resources") {
         filter(ReplaceTokens, tokens: [version: project.version])
     }
+}
+
+task runTestApp1(type:JavaExec) {
+  description 'Start app1 integration test app, useful when debugging failing integration tests'
+  main = 'org.apache.tapestry5.test.JettyRunner'
+  args "-d", "src/test/app1", "-p", "8080"
+  classpath += project.sourceSets.test.runtimeClasspath
+}
+task runTestApp2(type:JavaExec) {
+  description 'Start app2 integration test app, useful when debugging failing integration tests'
+  main = 'org.apache.tapestry5.test.JettyRunner'
+  args "-d", "src/test/app2", "-p", "8080"
+  classpath += project.sourceSets.test.runtimeClasspath
+}
+task runTestApp3(type:JavaExec) {
+  description 'Start app3 integration test app, useful when debugging failing integration tests'
+  main = 'org.apache.tapestry5.test.JettyRunner'
+  args "-d", "src/test/app3", "-p", "8080"
+  classpath += project.sourceSets.test.runtimeClasspath
+}
+task runTestApp4(type:JavaExec) {
+  description 'Start app4 integration test app, useful when debugging failing integration tests'
+  main = 'org.apache.tapestry5.test.JettyRunner'
+  args "-d", "src/test/app4", "-p", "8080"
+  classpath += project.sourceSets.test.runtimeClasspath
+}
+task runTestApp5(type:JavaExec) {
+  description 'Start app5 integration test app, useful when debugging failing integration tests'
+  main = 'org.apache.tapestry5.test.JettyRunner'
+  args "-d", "src/test/app5", "-p", "8080"
+  classpath += project.sourceSets.test.runtimeClasspath
+}
+task runTestAppfolder(type:JavaExec) {
+  description 'Start appFolder integration test app, useful when debugging failing integration tests'
+  main = 'org.apache.tapestry5.test.JettyRunner'
+  args "-d", "src/test/appfolder", "-p", "8080"
+  classpath += project.sourceSets.test.runtimeClasspath
+}
+
+task testWithPrototype(type:Test) {
+  systemProperties."tapestry.javascript-infrastructure-provider" = "prototype"
 }

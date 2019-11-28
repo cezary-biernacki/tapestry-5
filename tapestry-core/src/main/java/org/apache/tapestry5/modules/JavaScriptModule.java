@@ -29,6 +29,7 @@ import org.apache.tapestry5.ioc.annotations.Primary;
 import org.apache.tapestry5.ioc.annotations.Symbol;
 import org.apache.tapestry5.ioc.services.FactoryDefaults;
 import org.apache.tapestry5.ioc.services.SymbolProvider;
+import org.apache.tapestry5.ioc.services.SymbolSource;
 import org.apache.tapestry5.ioc.util.IdAllocator;
 import org.apache.tapestry5.json.JSONObject;
 import org.apache.tapestry5.services.*;
@@ -148,7 +149,26 @@ public class JavaScriptModule
 
         add(configuration, StackExtensionType.MODULE, "jquery");
 
-        addCoreStylesheets(configuration, "${" + SymbolConstants.BOOTSTRAP_ROOT + "}/css/bootstrap.css");
+        if (compatibility.enabled(Trait.BOOTSTRAP_3) && compatibility.enabled(Trait.BOOTSTRAP_4))
+        {
+            throw new RuntimeException("You cannot have Trait.BOOTSTRAP_3 and Trait.BOOTSTRAP_4 enabled at the same time. Check your contributions to the Compatibility service.");
+        }
+
+        if (compatibility.enabled(Trait.BOOTSTRAP_3))
+        {
+            addCoreStylesheets(configuration, "${" + SymbolConstants.BOOTSTRAP_ROOT + "}/css/bootstrap.css");
+        }
+
+        if (compatibility.enabled(Trait.BOOTSTRAP_4))
+        {
+            addCoreStylesheets(configuration, "${" + SymbolConstants.BOOTSTRAP_ROOT + "}/css/bootstrap.css");
+            addCoreStylesheets(configuration, "${" + SymbolConstants.BOOTSTRAP_ROOT + "}/css/bootstrap-grid.css");
+        }
+        
+        if (!compatibility.enabled(Trait.BOOTSTRAP_3) && !compatibility.enabled(Trait.BOOTSTRAP_4))
+        {
+            configuration.add("defaultcss", StackExtension.stylesheet("${" + SymbolConstants.DEFAULT_STYLESHEET + "}"));
+        }
 
         for (String name : bundledModules)
         {
@@ -157,6 +177,12 @@ public class JavaScriptModule
         }
 
         configuration.add("underscore-module", StackExtension.module("underscore"));
+    }
+    
+    @Contribute(Compatibility.class)
+    public static void setupCompatibilityDefaults(MappedConfiguration<Trait, Boolean> configuration)
+    {
+        configuration.add(Trait.BOOTSTRAP_4, false);
     }
 
     @Contribute(JavaScriptStack.class)
@@ -214,15 +240,24 @@ public class JavaScriptModule
                                               OperationTracker tracker,
                                               ResourceStreamer resourceStreamer,
                                               PathConstructor pathConstructor,
+                                              JavaScriptStackSource javaScriptStackSource,
+                                              JavaScriptStackPathConstructor javaScriptStackPathConstructor,
+                                              LocalizationSetter localizationSetter,
                                               @Symbol(SymbolConstants.MODULE_PATH_PREFIX)
-                                              String modulePathPrefix)
+                                              String modulePathPrefix,
+                                              @Symbol(SymbolConstants.ASSET_PATH_PREFIX)
+                                              String assetPathPrefix)
     {
         configuration.add("Modules",
-                new ModuleDispatcher(moduleManager, resourceStreamer, tracker, pathConstructor, modulePathPrefix, false),
+                new ModuleDispatcher(moduleManager, resourceStreamer, tracker, pathConstructor,
+                    javaScriptStackSource, javaScriptStackPathConstructor, localizationSetter, modulePathPrefix,
+                    assetPathPrefix, false),
                 "after:Asset", "before:ComponentEvent");
 
         configuration.add("ComnpressedModules",
-                new ModuleDispatcher(moduleManager, resourceStreamer, tracker, pathConstructor, modulePathPrefix, true),
+                new ModuleDispatcher(moduleManager, resourceStreamer, tracker, pathConstructor,
+                    javaScriptStackSource, javaScriptStackPathConstructor, localizationSetter, modulePathPrefix,
+                    assetPathPrefix, true),
                 "after:Modules", "before:ComponentEvent");
     }
 
@@ -346,34 +381,75 @@ public class JavaScriptModule
                                         @Path("${tapestry.asset.root}/typeahead.js")
                                         Resource typeahead,
 
-                                        @Path("${tapestry.asset.root}/moment-2.10.6.js")
+                                        @Path("${tapestry.asset.root}/moment-2.15.1.js")
                                         Resource moment,
+                                        
+                                        @Path("${tapestry.asset.root}/bootstrap/js/transition.js")
+                                        Resource transition,
 
-                                        @Path("${" + SymbolConstants.BOOTSTRAP_ROOT + "}/js/transition.js")
-                                        Resource transition)
+                                        @Path("${tapestry.asset.root}/bootstrap4/js/bootstrap-util.js")
+                                        Resource bootstrapUtil,
+                                        
+                                        Compatibility compatibility)
     {
         // The underscore shim module allows Underscore to be injected
         configuration.add("underscore", new JavaScriptModuleConfiguration(underscoreShim));
         configuration.add("jquery", new JavaScriptModuleConfiguration(jqueryShim));
-
-        configuration.add("bootstrap/transition", new JavaScriptModuleConfiguration(transition).dependsOn("jquery"));
-
-        for (String name : new String[]{"affix", "alert", "button", "carousel", "collapse", "dropdown", "modal",
-                "scrollspy", "tab", "tooltip"})
+        
+        if (compatibility.enabled(Trait.BOOTSTRAP_3))
         {
-            Resource lib = transition.forFile(name + ".js");
+            final String[] modules = new String[]{"affix", "alert", "button", "carousel", "collapse", "dropdown", "modal",
+                    "scrollspy", "tab", "tooltip"};
+            addBootstrap3Modules(configuration, transition, modules);
 
-            configuration.add("bootstrap/" + name, new JavaScriptModuleConfiguration(lib).dependsOn("bootstrap/transition"));
+            Resource popover = transition.forFile("popover.js");
+
+            configuration.add("bootstrap/popover", new AMDWrapper(popover).require("bootstrap/tooltip").asJavaScriptModuleConfiguration());
         }
 
-        Resource popover = transition.forFile("popover.js");
+        if (compatibility.enabled(Trait.BOOTSTRAP_4))
+        {
+            configuration.add("bootstrap/bootstrap-util", new JavaScriptModuleConfiguration(bootstrapUtil));
+            configuration.add("bootstrap/popper", new JavaScriptModuleConfiguration(
+                    bootstrapUtil.forFile("popper.js")));
+            
+            for (String name : new String[]{"alert", "button", "carousel", "collapse", "dropdown", "modal",
+                    "scrollspy", "tab", "tooltip"})
+            {
+                Resource lib = bootstrapUtil.forFile(name + ".js");
+                if (lib.exists())
+                {
+                    configuration.add("bootstrap/" + name, 
+                            new JavaScriptModuleConfiguration(lib)
+                                .dependsOn("bootstrap/bootstrap-util")
+                                .dependsOn("bootstrap/popper"));                
+                }
+            }
+        }
 
-        configuration.add("bootstrap/popover", new JavaScriptModuleConfiguration(popover).dependsOn("bootstrap/tooltip"));
+        // Just the minimum to have alerts and AJAX validation working when Bootstrap
+        // is completely disabled
+        if (!compatibility.enabled(Trait.BOOTSTRAP_3) && !compatibility.enabled(Trait.BOOTSTRAP_4))
+        {
+            final String[] modules = new String[]{"alert", "dropdown", "collapse"};
+            addBootstrap3Modules(configuration, transition, modules);
+        }
 
         configuration.add("t5/core/typeahead", new JavaScriptModuleConfiguration(typeahead).dependsOn("jquery"));
 
         configuration.add("moment", new JavaScriptModuleConfiguration(moment));
 
+    }
+
+    private static void addBootstrap3Modules(MappedConfiguration<String, Object> configuration, Resource transition, final String[] modules) {
+        configuration.add("bootstrap/transition", new AMDWrapper(transition).require("jquery", "$").asJavaScriptModuleConfiguration());
+
+        for (String name : modules)
+        {
+            Resource lib = transition.forFile(name + ".js");
+
+            configuration.add("bootstrap/" + name, new AMDWrapper(lib).require("bootstrap/transition").asJavaScriptModuleConfiguration());
+        }
     }
 
     @Contribute(SymbolProvider.class)

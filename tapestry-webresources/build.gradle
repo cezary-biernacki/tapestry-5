@@ -3,20 +3,21 @@ description = "Integration with WRO4J to perform runtime CoffeeScript compilatio
 dependencies {
     compile project(":tapestry-core")
     compile "com.github.sommeri:less4j:1.12.0"
-    compile "com.google.javascript:closure-compiler:v20131014"
-    compile "org.mozilla:rhino:1.7.7"
+    compile "com.google.javascript:closure-compiler-unshaded:v20190909"
+    compile "org.mozilla:rhino:1.7.7.2"
 
     testCompile project(":tapestry-runner")
     testCompile "org.gebish:geb-spock:${versions.geb}"
-    // Geb pulls in Groovy 2.3, so we need to select an appropriate Spock version
-    testCompile "org.spockframework:spock-core:1.0-groovy-2.3"
-
+    testCompile "org.spockframework:spock-tapestry:${versions.spock}"
+    
     testCompile "org.seleniumhq.selenium:selenium-java:${versions.selenium}", {
         exclude group: "org.eclipse.jetty"
     }
     testCompile "org.seleniumhq.selenium:selenium-server:${versions.selenium}", {
         exclude group: "org.eclipse.jetty"
     }
+    testCompile ("io.github.bonigarcia:webdrivermanager:2.2.4")
+    
 }
 
 jar.manifest {

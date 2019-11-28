@@ -694,6 +694,8 @@ public final class TapestryModule
         configuration.addInstance("max", Max.class);
         configuration.addInstance("regexp", Regexp.class);
         configuration.addInstance("email", Email.class);
+        configuration.addInstance("checked", Checked.class);
+        configuration.addInstance("unchecked", Unchecked.class);
         configuration.add("none", new None());
     }
 
@@ -1953,7 +1955,6 @@ public final class TapestryModule
     {
         configuration.addInstance(Object.class, TypeCoercedValueEncoderFactory.class);
         configuration.add(String.class, new StringValueEncoder());
-        configuration.addInstance(Enum.class, EnumValueEncoderFactory.class);
     }
 
     /**
@@ -2013,7 +2014,7 @@ public final class TapestryModule
         // This should be overridden for particular applications. These are the
         // locales for which we have (at least some) localized messages.
         configuration.add(SymbolConstants.SUPPORTED_LOCALES,
-                "en,it,es,zh_CN,pt_PT,de,ru,hr,fi_FI,sv_SE,fr,da,pt_BR,ja,el,bg,no_NB,sr_RS,mk_MK");
+                "en,it,es,zh_CN,pt_PT,de,ru,hr,fi_FI,sv_SE,fr,da,pt_BR,ja,el,bg,nb,sr_RS,mk_MK");
 
         configuration.add(SymbolConstants.TAPESTRY_VERSION,
                 VersionUtils.readVersionNumber("META-INF/gradle/org.apache.tapestry/tapestry-core/project.properties"));
@@ -2021,8 +2022,6 @@ public final class TapestryModule
         configuration.add(SymbolConstants.COOKIE_MAX_AGE, "7 d");
 
         configuration.add(SymbolConstants.START_PAGE_NAME, "start");
-
-        configuration.add(SymbolConstants.DEFAULT_STYLESHEET, "");
 
         configuration.add(SymbolConstants.PRODUCTION_MODE, true);
 
@@ -2127,6 +2126,15 @@ public final class TapestryModule
         configuration.add(SymbolConstants.FORM_GROUP_FORM_FIELD_WRAPPER_ELEMENT_NAME, "");
         configuration.add(SymbolConstants.FORM_GROUP_FORM_FIELD_WRAPPER_ELEMENT_CSS_CLASS, "");
         configuration.add(SymbolConstants.FORM_FIELD_CSS_CLASS, "form-control");
+        
+        // Grid's default table CSS class comes from the ComponentParameterConstants.GRID_TABLE_CSS_CLASS symbol
+        configuration.add(SymbolConstants.BEAN_DISPLAY_CSS_CLASS, "well dl-horizontal");
+        configuration.add(SymbolConstants.BEAN_EDITOR_BOOLEAN_PROPERTY_DIV_CSS_CLASS, "input-group");
+        configuration.add(SymbolConstants.ERROR_CSS_CLASS, "help-block");
+        configuration.add(SymbolConstants.AJAX_FORM_LOOP_ADD_ROW_LINK_CSS_CLASS, "btn btn-default btn-sm");
+        configuration.add(SymbolConstants.ERRORS_BASE_CSS_CLASS, "alert-dismissable");
+        configuration.add(SymbolConstants.ERRORS_DEFAULT_CLASS_PARAMETER_VALUE, "alert alert-danger");
+        configuration.add(SymbolConstants.ERRORS_CLOSE_BUTTON_CSS_CLASS, "close");
 
         // TAP5-1998
         configuration.add(SymbolConstants.LENIENT_DATE_FORMAT, false);

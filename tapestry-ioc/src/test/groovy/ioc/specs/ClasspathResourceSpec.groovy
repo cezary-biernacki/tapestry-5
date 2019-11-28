@@ -1,7 +1,10 @@
 package ioc.specs
 
+import java.security.AccessController;
+
 import org.apache.commons.lang3.SystemUtils
 import org.apache.tapestry5.ioc.internal.util.ClasspathResource
+import org.slf4j.Logger;
 
 import spock.lang.Issue;
 import spock.lang.Specification
@@ -264,7 +267,7 @@ class ClasspathResourceSpec extends Specification {
 
       then:
       IOException e = thrown()
-      e.message.contains 'Cannot open a steam for a resource that references a directory inside a JAR file'
+      e.message.contains 'Cannot open a stream for a resource that references a directory inside a JAR file'
     }
 
     @Issue('TAP5-2448')
@@ -279,4 +282,23 @@ class ClasspathResourceSpec extends Specification {
       notThrown(IOException)
     }
 
+    @Issue('TAP5-2517')
+    def "Can open a stream for a file resource within a JAR file that has a duplicate on the classpath"() {
+      setup:
+      def currentCl = Thread.currentThread().contextClassLoader 
+      def resourcePath = 'META-INF/maven/org.slf4j/slf4j-api/pom.xml'
+      
+      def resourceURLs = currentCl.findResources resourcePath
+      def slf4jApiURL = resourceURLs.find{it.toString().contains('.jar!')} 
+      ClassLoader cl = new URLClassLoader(slf4jApiURL as URL[], (ClassLoader) null)
+     
+      ClasspathResource r = new ClasspathResource(cl, resourcePath)
+
+      when:
+      r.openStream()
+      then:
+      notThrown(IOException)
+     
+    }
+    
 }

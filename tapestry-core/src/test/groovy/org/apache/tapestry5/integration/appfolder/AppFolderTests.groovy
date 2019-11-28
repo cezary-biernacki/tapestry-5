@@ -53,8 +53,13 @@ class AppFolderTests extends GroovyTapestryCoreTestCase
     {
         openLinks "t5app/"
 
-        // Ony one image on page
+        // there's only one image on page
         String assetURL = getAttribute("//img/@src")
+
+        // Selenium now (sometimes?) adds unwanted port & host
+        if (assetURL.startsWith("http")) {
+            assetURL = new URL(assetURL).getPath()
+        }
 
         assert assetURL.startsWith("/t5app/assets/")
 

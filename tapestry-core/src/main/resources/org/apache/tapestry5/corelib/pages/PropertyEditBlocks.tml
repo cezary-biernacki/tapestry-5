@@ -15,9 +15,17 @@
 
     <t:block id="boolean">
 
-        <div class="checkbox">
+        <div class="checkbox" t:type="If" t:test="bootstrap3Enabled">
             <label>
-                <input t:id="checkboxField"/>
+                <div class="input-group">
+                    <input t:id="checkboxField3"/>
+                    ${context.label}
+                </div>
+            </label>
+        </div>
+        <div class="form-group form-check" t:type="If" t:test="!bootstrap3Enabled">
+            <input t:id="checkboxField"/>
+            <label t:type="Label" for="checkboxField">
                 ${context.label}
             </label>
         </div>
@@ -40,4 +48,8 @@
     <t:block id="longtext">
         <textarea t:id="textarea" t:mixins="formgroup"/>
     </t:block>
+
+    <t:block id="object">
+        <t:beanEditor object="context.propertyValue" model="model"/>
+	</t:block>
 </div>

@@ -82,6 +82,16 @@ It is now possible to control, for each JavaScript Stack, how that stack treats 
 The default is to aggregate the libraries and minimize them, but there are now options to aggregate
 them without minimizing, or to leave them as individual files (neither aggregating, nor minimizing).
 
+# Classpath asset protection (introduced in 5.4.4)
+A new service, `ClasspathAssetProtectionRule`, which receives contributions of `ClasspathAssetProtectionRule`
+instances, was created to you can easily add rules to block requests to classpath assets according to your 
+security needs. 
+
+Three rules are added out-of-the-box and may be overriden:
+* `ClassFile`: blocks access to assets with `.class` endings (case insensitive).
+* `PropertiesFile`: blocks access to assets with `.properties` endings (case insensitive).
+* `XMLFile`: blocks access to assets with `.xml` endings (case insensitive).
+
 ## FormGroup Mixin
 
 This new mixin for Field components adds the outer `<div class="form-group">` and `<label>` elements for a Field
@@ -151,14 +161,15 @@ never, or always.
 
 As of version 5.4, Tapestry requires Java 1.6 at least.
 
-## Form Control names
+## clientId required for Ajax field decoration
 
-The rules for how a form control's name attribute is generated on the server has changed; previously, it was
-based on the field component's client-side id.  It is now based on the component's simple Tapestry id.
- 
-As before, the id is made unique with an optional numeric suffix; however with this change it is possible,
-in some complex Ajax-related cases (involving FormFragment or FormInjector components) for there to be name
-collisions that were not possible before.
+Applications that perform server-side validation of form control data (such as TextField) *as part of
+an Ajax Zone update* should bind the Zone's simpleIds parameter to true. This disables the injection of a per-request
+unique id into allocated client-side ids and client-side control names.
+
+Non-Ajax requests are not affected.  Client-side validation is not affected. Only the rare case where validation
+only occurs on the server is affected; Tapestry has lost the ability to coordinate the Tapestry-generated id
+for the field (this is related to big improvements in rendering described below).
 
 ## Charset for Assets
 

@@ -18,12 +18,22 @@ import org.apache.tapestry5.SelectModel;
 import org.apache.tapestry5.ValueEncoder;
 import org.apache.tapestry5.annotations.Component;
 import org.apache.tapestry5.annotations.Environmental;
-import org.apache.tapestry5.corelib.components.*;
+import org.apache.tapestry5.beaneditor.BeanModel;
+import org.apache.tapestry5.corelib.components.BeanEditForm;
+import org.apache.tapestry5.corelib.components.Checkbox;
+import org.apache.tapestry5.corelib.components.DateField;
+import org.apache.tapestry5.corelib.components.PasswordField;
+import org.apache.tapestry5.corelib.components.Select;
+import org.apache.tapestry5.corelib.components.TextArea;
+import org.apache.tapestry5.corelib.components.TextField;
 import org.apache.tapestry5.ioc.annotations.Inject;
 import org.apache.tapestry5.ioc.services.TypeCoercer;
 import org.apache.tapestry5.services.BeanBlockContribution;
 import org.apache.tapestry5.services.BeanBlockSource;
+import org.apache.tapestry5.services.BeanModelSource;
 import org.apache.tapestry5.services.PropertyEditContext;
+import org.apache.tapestry5.services.compatibility.Compatibility;
+import org.apache.tapestry5.services.compatibility.Trait;
 import org.apache.tapestry5.util.EnumSelectModel;
 import org.apache.tapestry5.util.EnumValueEncoder;
 
@@ -38,6 +48,9 @@ public class PropertyEditBlocks
 {
     @Environmental
     private PropertyEditContext context;
+    
+    @Inject
+    private Compatibility compatibility;
 
     @Component(
             parameters = {"value=context.propertyValue", "label=prop:context.label",
@@ -59,6 +72,12 @@ public class PropertyEditBlocks
                     "model=selectModelForProperty", "validate=prop:selectValidator",
                     "clientId=prop:context.propertyId", "ensureClientIdUnique=true"})
     private Select select;
+
+    @SuppressWarnings("unused")
+    @Component(
+            parameters = {"value=context.propertyValue", "label=prop:context.label",
+                    "clientId=prop:context.propertyId", "ensureClientIdUnique=true"})
+    private Checkbox checkboxField3;
 
     @SuppressWarnings("unused")
     @Component(
@@ -180,4 +199,19 @@ public class PropertyEditBlocks
         }
         return new EnumSelectModel(propertyType, context.getContainerMessages());
     }
+
+    @Inject
+    private BeanModelSource beanModelSource;
+
+    @SuppressWarnings("unchecked")
+    public BeanModel<?> getModel()
+    {
+            return beanModelSource.createEditModel(context.getPropertyType(), context.getContainerMessages());
+    }
+    
+    public boolean isBootstrap3Enabled()
+    {
+        return compatibility.enabled(Trait.BOOTSTRAP_3);
+    }
+    
 }

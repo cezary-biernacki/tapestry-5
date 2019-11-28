@@ -1,7 +1,7 @@
 package t5.webresources.tests
 
 import geb.spock.GebReportingSpec
-import org.apache.tapestry5.test.Jetty7Runner
+import org.apache.tapestry5.test.JettyRunner
 import spock.lang.Shared
 
 class WebResourcesSpec extends GebReportingSpec {
@@ -10,7 +10,7 @@ class WebResourcesSpec extends GebReportingSpec {
     def runner;
 
     def setupSpec() {
-        runner = new Jetty7Runner("src/test/webapp", "/", 8080, 8081);
+        runner = new JettyRunner("src/test/webapp", "/", 8080, 8081);
 
         runner.start()
     }
@@ -27,7 +27,7 @@ class WebResourcesSpec extends GebReportingSpec {
         // Open index page
         go()
 
-        waitFor { !$("body[data-page-initialized]").empty }
+        waitFor { $('body').@'data-page-initialized' == 'true' }
 
         then:
 
@@ -42,7 +42,7 @@ class WebResourcesSpec extends GebReportingSpec {
 
         go()
 
-        waitFor { !$("body[data-page-initialized]").empty }
+        waitFor { $('body').@'data-page-initialized' == 'true' }
 
         // Because the CoffeeScript may already be pre-compiled, it can outrace the Less compilation.
         // For some reason, the navbar is invisible (at least to Selenium) until the CSS loads.
@@ -57,6 +57,6 @@ class WebResourcesSpec extends GebReportingSpec {
 
         then:
 
-        $(".demo").css("background-color") == "rgba(179, 179, 255, 1)"
+        $(".demo").css("background-color") == "rgb(179, 179, 255)"
     }
 }

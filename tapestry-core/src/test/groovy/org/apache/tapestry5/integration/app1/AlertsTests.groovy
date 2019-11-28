@@ -12,6 +12,7 @@
 
 package org.apache.tapestry5.integration.app1
 
+import org.openqa.selenium.By
 import org.testng.annotations.Test
 
 /**
@@ -33,13 +34,13 @@ class AlertsTests extends App1TestCase {
 
         clickAndWait "//input[@value='Traditional Update']"
 
-        waitForCSSSelectedElementToAppear "$CONTAINER .alert"
+        waitForCssSelectorToAppear "$CONTAINER .alert"
 
         assertTextPresent "trad warn until"
 
         clickAndWait BACK_TO_INDEX
 
-        waitForCSSSelectedElementToAppear "$CONTAINER .alert"
+        waitForCssSelectorToAppear "$CONTAINER .alert"
 
         assertTextPresent "trad warn until"
 
@@ -77,13 +78,14 @@ class AlertsTests extends App1TestCase {
 
         clickAndWait "//input[@value='Traditional Update']"
 
-        waitForCSSSelectedElementToAppear "$CONTAINER .alert"
+        waitForCssSelectorToAppear "$CONTAINER .alert"
 
         assertTextPresent "trad warn transient"
 
         // dismiss the first alert that indicates the submission type
-
-        click "css=$CONTAINER :contains('Traditional form submission') button.close"
+        webDriver.findElements(By.cssSelector(CONTAINER)).find{
+          it.text.contains('Traditional form submission')
+        }.findElement(By.cssSelector('button.close')).click()
 
         // wait for the transient alert to be automatically removed
         sleep 5000
@@ -97,10 +99,10 @@ class AlertsTests extends App1TestCase {
     void ajax_update_and_remove() {
         openLinks "Alerts Demo", "Reset Alerts Storage"
 
-        def severitySelector = "css=#ajax select[name='select_0']"
-        def durationSelector = "css=#ajax select[name='select_1']"
-        def messageSelector = "css=#ajax input[name='textField']"
-        def markupSelector = "css=#ajax input[name='checkboxField']"
+        def severitySelector = "css=#ajax select[name='severity_0']"
+        def durationSelector = "css=#ajax select[name='duration_0']"
+        def messageSelector = "css=#ajax input[name='message_0']"
+        def markupSelector = "css=#ajax input[name='markup_0']"
 
         select severitySelector, "Error"
         select durationSelector, "Until Dismissed"
@@ -108,7 +110,7 @@ class AlertsTests extends App1TestCase {
 
         click "//input[@value='Ajax Update']"
 
-        waitForCSSSelectedElementToAppear "$CONTAINER .alert"
+        waitForCssSelectorToAppear "$CONTAINER .alert"
 
         assertTextPresent "ajax error until"
 
@@ -131,7 +133,7 @@ class AlertsTests extends App1TestCase {
         
         click "//input[@value='Ajax Update']"
         
-        waitForCSSSelectedElementToAppear "$CONTAINER .alert"
+        waitForCssSelectorToAppear "$CONTAINER .alert"
         
         assert isElementPresent("//div[@class='alert alert-dismissable alert-warning']/a/span[text()='Markup!']")
 
@@ -152,7 +154,7 @@ class AlertsTests extends App1TestCase {
 
         waitForAjaxRequestsToComplete()
 
-        waitForCSSSelectedElementToAppear "div.t-error"
+        waitForCssSelectorToAppear "div.t-error"
 
         assertText "css=div.t-error div.t-message-container", "ajax error single"
 

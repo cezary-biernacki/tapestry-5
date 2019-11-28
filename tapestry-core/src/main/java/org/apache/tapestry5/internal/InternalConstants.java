@@ -13,8 +13,10 @@
 package org.apache.tapestry5.internal;
 
 import org.apache.tapestry5.ContentType;
+import org.apache.tapestry5.annotations.PublishEvent;
 import org.apache.tapestry5.dom.MarkupModel;
 import org.apache.tapestry5.ioc.util.TimeInterval;
+import org.apache.tapestry5.model.ComponentModel;
 import org.apache.tapestry5.services.javascript.JavaScriptStack;
 
 public final class InternalConstants
@@ -202,7 +204,7 @@ public final class InternalConstants
 
     /**
      * Name of request parameter that suppresses the logic that injects a random-ish namespace into allocated ids when rending partial page
-     * responses. This, of course, requires a lot of testing to ensure that there are no resulting name classes,
+     * responses. This, of course, requires a lot of testing to ensure that there are no resulting name clashes,
      * and should not be used inside Zones containing an {@link org.apache.tapestry5.corelib.components.AjaxFormLoop}.
      *
      * @since 5.4
@@ -213,4 +215,19 @@ public final class InternalConstants
      * @since 5.4
      */
     public static final ContentType JAVASCRIPT_CONTENT_TYPE = new ContentType("text/javascript");
+    
+    /**
+     * Name of the {@linkplain ComponentModel} metadata key whiche stores the {@linkplain PublishEvent}
+     * data.
+     * @since 5.4.2
+     */
+    public static final String PUBLISH_COMPONENT_EVENTS_META = "meta.publish-component-events";
+    
+    /**
+     * Name of the JSONObject key name which holds the name of the event to be published.
+     * 
+     * @since 5.4.2
+     */
+    public static final String PUBLISH_COMPONENT_EVENTS_URL_PROPERTY = "url";
+
 }

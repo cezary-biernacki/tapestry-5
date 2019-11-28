@@ -101,6 +101,9 @@ public abstract class AbstractResource extends LockSupport implements Resource
             terms.add(term);
         }
 
+        // Handling systems using backslash as the path separator, such as Windows
+        relativePath = relativePath.replace('\\', '/');
+        
         for (String term : relativePath.split("/"))
         {
             // This will occur if the relative path contains sequential slashes
@@ -286,15 +289,17 @@ public abstract class AbstractResource extends LockSupport implements Resource
             // TAP5-2448: make sure that the URL does not reference a directory
             String urlAsString = url.toString();
 
-            int indexOfExclamationMark = url.toString().indexOf('!');
+            int indexOfExclamationMark = urlAsString.indexOf('!');
 
             String resourceInJar = urlAsString.substring(indexOfExclamationMark + 2);
 
-            boolean isDirectory = Thread.currentThread().getContextClassLoader().getResource(resourceInJar + "/") != null;
+            URL directoryResource = Thread.currentThread().getContextClassLoader().getResource(resourceInJar + "/");
+
+            boolean isDirectory = directoryResource != null && "jar".equals(directoryResource.getProtocol());
 
             if (isDirectory)
             {
-                throw new IOException("Cannot open a steam for a resource that references a directory inside a JAR file (" + url + ").");
+                throw new IOException("Cannot open a stream for a resource that references a directory inside a JAR file (" + url + ").");
             }
             
         }

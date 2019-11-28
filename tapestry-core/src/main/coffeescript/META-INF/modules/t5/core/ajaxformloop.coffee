@@ -59,26 +59,29 @@ define ["./dom", "./events", "./console", "./ajax"],
       url = afl.attr "data-inject-row-url"
 
       ajax url,
-        success: (response) =>
+        success: (response) ->
           content = response.json?.content or ""
 
           # Create a new element with the same type (usually "div") and class as this element.
           # It will contain the new content.
 
-          newElement = """
-              <#{insertionPoint.element.tagName} class="#{insertionPoint.element.className}"
-                data-container-type="#{FRAGMENT_TYPE}">
-                #{content}
-                </#{insertionPoint.element.tagName}>
-              """
+          newElement = dom.create insertionPoint.element.tagName,
+                                  'class': insertionPoint.element.className, 'data-container-type': FRAGMENT_TYPE,
+                                  content
+
 
           insertionPoint.insertBefore newElement
+
+          # Initialize components inside the new row
+          newElement.trigger events.initializeComponents
 
           # Trigger this event, to inform the world that the zone-like new element has been updated
           # with content.
           insertionPoint.trigger events.zone.didUpdate
 
+          return
+
       return false
 
     # This module is all event handlers, and no exported functions.
-    return null
+    return

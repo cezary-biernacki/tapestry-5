@@ -520,15 +520,8 @@ define ["underscore", "./utils", "./events", "jquery"],
 
     # Returns true if this element is visible, and all parent elements are also visible, up to the document body.
     deepVisible: ->
-      cursor = this
-      while cursor
-        return false unless cursor.visible()
-        cursor = cursor.parent()
-
-        return true if cursor and cursor.element is document.body
-
-      # Bound not reached, meaning that the Element is not currently attached to the DOM.
-      return false
+      element = this.element
+      element.offsetWidth > 0 && element.offsetHeight > 0
 
     # Fires a named event, passing an optional _memo_ object to event handler functions. This must support
     # common native events (exact list TBD), as well as custom events (in Prototype, custom events must have
@@ -820,7 +813,7 @@ define ["underscore", "./utils", "./events", "jquery"],
 
     if scanners is null
       scanners = []
-      exports.body.on events.zone.didUpdate, ->
+      exports.body.on events.initializeComponents, ->
         f this for f in scanners
         return
 
@@ -881,7 +874,69 @@ define ["underscore", "./utils", "./events", "jquery"],
 
     return element
 
+  # Returns the value of a given data attribute as an object.
+  # The "data-" prefix is added automatically.
+  # element - (object) HTML dom element
+  # attribute - (string) name of the data attribute without the "data-" prefix.
+  getDataAttributeAsObject = (element, attribute) ->
+
+#if jquery
+    value = $(element).data(attribute)
+#elseif prototype
+    value = $(element).readAttribute('data-' + attribute)
+    if value isnt null
+      value = JSON.parse(value)
+    else
+      value = {}
+#endif
+
+  # Returns the URL of a component event based on its name and an optional element
+  # or null if the event information is not found. When the element isn't passed
+  # or it's null, the event data is taken from the <body> element.
+  #
+  # * eventName - (string) name of the component event
+  # * element - (object) HTML DOM element to be used as the beginning of the event data search. Optional.
+  getEventUrl = (eventName, element) ->
+
+    if not (eventName?)
+      throw 'dom.getEventUrl: the eventName parameter cannot be null'
+
+    if not _.isString eventName
+      throw 'dom.getEventUrl: the eventName parameter should be a string'
+
+    eventName = eventName.toLowerCase()
+
+    if element is null
+      element = document.body
+    else if element instanceof ElementWrapper
+      element = element.element;
+    else if element.jquery?
+      element = element[0];
+
+
+    # Look for event data in itself first, then in the preceding siblings
+    # if not found
+    url = null
+
+    while not url? and element.previousElementSibling?
+      data = getDataAttributeAsObject(element, 'component-events')
+      url = data?[eventName]?.url
+      element = element.previousElementSibling
+
+    if not url?
+
+      # Look at parent elements recursively
+      while not url? and element.parentElement?
+        data = getDataAttributeAsObject(element, 'component-events')
+        url = data?[eventName]?.url
+        element = element.parentElement;
+    
+    return url;
+
   _.extend exports,
+  
+    getEventUrl: getEventUrl
+    
     wrap: wrapElement
 
     create: createElement

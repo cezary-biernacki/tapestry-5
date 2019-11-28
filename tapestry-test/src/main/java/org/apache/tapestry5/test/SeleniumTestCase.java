@@ -13,10 +13,24 @@
 package org.apache.tapestry5.test;
 
 import com.thoughtworks.selenium.CommandProcessor;
-import com.thoughtworks.selenium.DefaultSelenium;
-import com.thoughtworks.selenium.HttpCommandProcessor;
 import com.thoughtworks.selenium.Selenium;
-import org.openqa.selenium.server.SeleniumServer;
+import com.thoughtworks.selenium.webdriven.WebDriverBackedSelenium;
+import com.thoughtworks.selenium.webdriven.WebDriverCommandProcessor;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.firefox.FirefoxProfile;
+import org.openqa.selenium.internal.WrapsDriver;
+import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.support.ui.ExpectedCondition;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -24,8 +38,11 @@ import org.testng.ITestContext;
 import org.testng.annotations.*;
 import org.testng.xml.XmlTest;
 
+import io.github.bonigarcia.wdm.FirefoxDriverManager;
+
 import java.io.File;
 import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Base class for creating Selenium-based integration test cases. This class implements all the
@@ -63,7 +80,10 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
      *
      * @since 5.3
      */
+    @Deprecated
     protected Selenium selenium;
+
+    protected WebDriver webDriver;
 
     private String baseURL;
 
@@ -190,29 +210,32 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
 
         final Runnable stopWebServer = launchWebServer(container, webAppFolder, contextPath, port, sslPort);
 
-        final SeleniumServer seleniumServer = new SeleniumServer();
+        FirefoxDriverManager.getInstance().setup();
 
         File ffProfileTemplate = new File(TapestryRunnerConstants.MODULE_BASE_DIR, "src/test/conf/ff_profile_template");
+        DesiredCapabilities desiredCapabilities = DesiredCapabilities.firefox();
+        desiredCapabilities.setCapability(FirefoxDriver.MARIONETTE, true);
+
+        FirefoxOptions options = new FirefoxOptions(desiredCapabilities);
 
         if (ffProfileTemplate.isDirectory())
         {
-            seleniumServer.getConfiguration().setFirefoxProfileTemplate(ffProfileTemplate);
+            FirefoxProfile profile = new FirefoxProfile(ffProfileTemplate);
+            options.setProfile(profile);
         }
 
-        seleniumServer.start();
+        FirefoxDriver driver = new FirefoxDriver(options);
+        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
+
+        CommandProcessor webDriverCommandProcessor = new WebDriverCommandProcessor(baseURL, driver);
 
 
-        CommandProcessor httpCommandProcessor = new HttpCommandProcessor("localhost",
-                seleniumServer.getPort(), browserStartCommand, baseURL);
+        final ErrorReporterImpl errorReporter = new ErrorReporterImpl(driver, testContext);
 
-        final ErrorReporterImpl errorReporter = new ErrorReporterImpl(httpCommandProcessor, testContext);
-
-        ErrorReportingCommandProcessor commandProcessor = new ErrorReportingCommandProcessor(httpCommandProcessor,
+        ErrorReportingCommandProcessor commandProcessor = new ErrorReportingCommandProcessor(webDriverCommandProcessor,
                 errorReporter);
 
-        final Selenium selenium = new DefaultSelenium(commandProcessor);
-
-        selenium.start();
+        Selenium selenium = new WebDriverBackedSelenium(driver, baseURL);
 
         testContext.setAttribute(TapestryTestConstants.BASE_URL_ATTRIBUTE, baseURL);
         testContext.setAttribute(TapestryTestConstants.SELENIUM_ATTRIBUTE, selenium);
@@ -236,15 +259,19 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
                         LOGGER.error("Selenium client shutdown failure.", e);
                     }
 
-                    LOGGER.info("Shutting down selenium server ...");
+                    LOGGER.info("Shutting down webdriver ...");
 
                     try
                     {
-                        seleniumServer.stop();
+                        if (webDriver != null) { // is sometimes null... but why?
+                            webDriver.quit();
+                        }
                     } catch (RuntimeException e)
                     {
-                        LOGGER.error("Selenium server shutdown failure.", e);
+                        LOGGER.error("Webdriver shutdown failure.", e);
                     }
+
+                    LOGGER.info("Shutting down selenium server ...");
 
                     LOGGER.info("Shutting web server ...");
 
@@ -345,12 +372,12 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
     {
         if (TOMCAT_6.equals(container))
         {
-            return new Tomcat6Runner(webAppFolder, contextPath, port, sslPort);
+            return new TomcatRunner(webAppFolder, contextPath, port, sslPort);
         }
 
         if (JETTY_7.equals(container))
         {
-            return new Jetty7Runner(webAppFolder, contextPath, port, sslPort);
+            return new JettyRunner(webAppFolder, contextPath, port, sslPort);
         }
 
         throw new RuntimeException("Unknown servlet container: " + container);
@@ -362,6 +389,7 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
         this.testContext = context;
 
         selenium = (Selenium) context.getAttribute(TapestryTestConstants.SELENIUM_ATTRIBUTE);
+        webDriver = ((WrapsDriver) selenium).getWrappedDriver();
         baseURL = (String) context.getAttribute(TapestryTestConstants.BASE_URL_ATTRIBUTE);
         errorReporter = (ErrorReporter) context.getAttribute(TapestryTestConstants.ERROR_REPORTER_ATTRIBUTE);
     }
@@ -515,7 +543,12 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
     @Override
     public void check(String locator)
     {
-        selenium.check(locator);
+        WebElement element = webDriver.findElement(convertLocator(locator));
+        if (!element.isSelected())
+        {
+            scrollIntoView(element);
+            element.click();
+        }
     }
 
     @Override
@@ -533,7 +566,11 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
     @Override
     public void click(String locator)
     {
-        selenium.click(locator);
+        WebElement element = webDriver.findElement(convertLocator(locator));
+        scrollIntoView(element);
+        JavascriptExecutor executor = (JavascriptExecutor)webDriver;
+        executor.executeScript("arguments[0].click();", element);
+//      element.click(); // failing as of Aug 2018
     }
 
     @Override
@@ -947,7 +984,7 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
     @Override
     public boolean isElementPresent(String locator)
     {
-        return selenium.isElementPresent(locator);
+        return !webDriver.findElements(convertLocator(locator)).isEmpty();
     }
 
     @Override
@@ -1289,13 +1326,15 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
     @Override
     public void type(String locator, String value)
     {
-        selenium.type(locator, value);
+        WebElement element = webDriver.findElement(convertLocator(locator));
+        ((JavascriptExecutor) webDriver).executeScript("arguments[0].value = arguments[1];", element, value);
     }
 
     @Override
     public void typeKeys(String locator, String value)
     {
-        selenium.typeKeys(locator, value);
+        WebElement element = webDriver.findElement(convertLocator(locator));
+        element.sendKeys(value);
     }
 
     @Override
@@ -1314,6 +1353,17 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
     public void waitForCondition(String script, String timeout)
     {
         selenium.waitForCondition(script, timeout);
+    }
+
+    protected void waitForCondition(ExpectedCondition condition)
+    {
+      waitForCondition(condition, 10l);
+    }
+
+    protected void waitForCondition(ExpectedCondition condition, long timeoutSeconds)
+    {
+      WebDriverWait wait = new WebDriverWait(webDriver, timeoutSeconds);
+      wait.until(condition);
     }
 
     @Override
@@ -1335,32 +1385,26 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
         // In a limited number of cases, a "page" is an container error page or raw HTML content
         // that does not include the body element and data-page-initialized element. In those cases,
         // there will never be page initialization in the Tapestry sense and we return immediately.
-
-        if (!isElementPresent("css=body[data-page-initialized]"))
+        try
         {
-            return;
-        }
+            WebElement body = webDriver.findElement(By.cssSelector("body"));
 
-        final long pollingStartTime = System.currentTimeMillis();
-
-        long sleepTime = 20;
-
-        while (true)
-        {
-            if (isElementPresent("css=body[data-page-initialized='true']"))
+            if (body.getAttribute("data-page-initialized") == null)
             {
                 return;
             }
-
-            if ((System.currentTimeMillis() - pollingStartTime) > 30000)
-            {
-                reportAndThrowAssertionError("Page did not finish initializing after 30 seconds.");
-            }
-
-            sleep(sleepTime);
-
-            sleepTime *= 2;
+            
+            // Attempt to fix StaleElementReferenceException: The element reference of <body> is stale; either the element is no longer attached to the DOM, it is not in the current frame context, or the document has been refreshed
+            // waitForCondition(ExpectedConditions.attributeToBe(body, "data-page-initialized", "true"), 30);
+            waitForCssSelectorToAppear("body[data-page-initialized='true']");
+        } catch (NoSuchElementException e)
+        {
+            // no body element found, there's nothing to wait for
+        } catch (StaleElementReferenceException e) {
+            e.printStackTrace();
+            System.out.println("Continuing execution after exception above.");
         }
+        
     }
 
     @Override
@@ -1384,6 +1428,12 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
     // ---------------------------------------------------------------------
     // End of delegate methods
     // ---------------------------------------------------------------------
+
+
+    public void scrollIntoView(WebElement element)
+    {
+        ((JavascriptExecutor) webDriver).executeScript("arguments[0].scrollIntoView(true);", element);
+    }
 
     /**
      * Formats a message from the provided arguments, which is written to System.err. In addition,
@@ -1516,7 +1566,6 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
     protected final void clickAndWait(String locator)
     {
         click(locator);
-
         waitForPageToLoad();
     }
 
@@ -1611,26 +1660,6 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
     }
 
     /**
-     * Waits, up to the page load limit for an element (identified by a CSS rule) to exist
-     * (it is not assured that the element will be visible).
-     *
-     * This implementation only works if the application provides a function onto the
-     * window object:  "testSupport.findCSSMatchCount()" which accepts a CSS rule and returns the number
-     * of matching elements.
-     *
-     * @param cssSelector
-     *         used to locate the element
-     * @since 5.3
-     * @deprecated Deprecated in 5.4 with no replacement
-     */
-    protected void waitForCSSSelectedElementToAppear(String cssSelector)
-    {
-        String condition = String.format("window.testSupport.findCSSMatchCount(\"%s\") > 0", cssSelector);
-
-        waitForCondition(condition, PAGE_LOAD_TIMEOUT);
-    }
-
-    /**
      * Waits for the element with the given client-side id to be present in the DOM (
      * does not assure that the element is visible).
      *
@@ -1642,6 +1671,21 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
     {
 
         String condition = String.format("selenium.browserbot.getCurrentWindow().document.getElementById(\"%s\")", elementId);
+
+        waitForCondition(condition, PAGE_LOAD_TIMEOUT);
+    }
+    
+    /**
+     * Waits for an element with a given CSS selector to appear.
+     *
+     * @param selector
+     *         the CSS selector to wait.
+     * @since 5.5
+     */
+    protected final void waitForCssSelectorToAppear(String selector)
+    {
+
+        String condition = String.format("selenium.browserbot.getCurrentWindow().document.querySelector(\"%s\")", selector);
 
         waitForCondition(condition, PAGE_LOAD_TIMEOUT);
     }
@@ -1675,9 +1719,7 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
      */
     protected final void waitForVisible(String selector)
     {
-        String condition = String.format("selenium.isVisible(\"%s\")", selector);
-
-        waitForCondition(condition, PAGE_LOAD_TIMEOUT);
+        waitForCondition(ExpectedConditions.visibilityOfElementLocated(convertLocator(selector)));
     }
 
     /**
@@ -1691,9 +1733,7 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
      */
     protected final void waitForInvisible(String selector)
     {
-        String condition = String.format("!selenium.isVisible(\"%s\")", selector);
-
-        waitForCondition(condition, PAGE_LOAD_TIMEOUT);
+        waitForCondition(ExpectedConditions.invisibilityOfElementLocated(convertLocator(selector)));
     }
 
     /**
@@ -1767,4 +1807,31 @@ public abstract class SeleniumTestCase extends Assert implements Selenium
         return selenium.getCssCount(str);
     }
 
+    protected static By convertLocator(String locator)
+    {
+        if (locator.startsWith("link="))
+        {
+            return By.linkText(locator.substring(5));
+        }
+        else if (locator.startsWith("css="))
+        {
+            return By.cssSelector(locator.substring(4));
+        }
+        else if (locator.startsWith("xpath="))
+        {
+            return By.xpath(locator.substring(6));
+        }
+        else if (locator.startsWith("id="))
+        {
+            return By.id(locator.substring(3));
+        }
+        else if (locator.startsWith("//"))
+        {
+            return By.xpath(locator);
+        }
+        else
+        {
+            return By.id(locator);
+        }
+    }
 }

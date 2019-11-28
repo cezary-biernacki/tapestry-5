@@ -1,6 +1,10 @@
 package org.apache.tapestry5.plastic
 
+import spock.lang.Issue
+import testinterfaces.samemethodinterface.ResultRunner
+import testinterfaces.samemethodinterface.SameMethodsInterface
 import testsubjects.Memory
+import testinterfaces.WithStatic
 
 class MethodProxying extends AbstractPlasticSpecification {
 
@@ -27,6 +31,58 @@ class MethodProxying extends AbstractPlasticSpecification {
         then:
 
         1 * mockRunnable.run()
+    }
+
+    def "Proxying with static methods"() {
+        setup:
+
+        def mockRunnable = Mock(Runnable.class)
+
+        def o = mgr.createClass(Object, { PlasticClass pc ->
+
+            def field = pc.introduceField(Runnable, "delegate").inject(mockRunnable)
+
+            pc.proxyInterface(WithStatic, field)
+        } as PlasticClassTransformer).newInstance()
+
+        expect:
+
+        WithStatic.isInstance o
+        o.version() == 1
+
+        when:
+
+        o.run()
+
+        then:
+
+        1 * mockRunnable.run()
+    }
+
+    @Issue("TAP5-2582")
+    def "Proxying with multiple methods of the same signature"() {
+        setup:
+
+        def mockRunner = Mock(SameMethodsInterface.class) {
+            run() >> new testinterfaces.samemethodinterface.pkg2.Result();
+        }
+
+        def o = mgr.createClass(Object, { PlasticClass pc ->
+
+            def field = pc.introduceField(SameMethodsInterface, "delegate").inject(mockRunner)
+
+            pc.proxyInterface(ResultRunner, field)
+        } as PlasticClassTransformer).newInstance()
+
+        when:
+
+        def result = o.run();
+
+        then:
+
+        result instanceof testinterfaces.samemethodinterface.pkg1.Result;
+
+        result instanceof testinterfaces.samemethodinterface.pkg2.Result;
     }
 
     def "proxy method with arguments and return value"() {

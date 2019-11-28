@@ -1,11 +1,10 @@
 # ## t5/core/confirm-click
 #
-# Support for the Tapestry Confirm mixin, and for running confirmation dialogs programatically.
-# Note that this does not function correctly when Prototype is present.
+# Support for the Tapestry Confirm mixin, and for running confirmation dialogs programmatically.
 
-define ["jquery", "./events", "./dom", "bootstrap/modal"],
+define ["jquery", "./events", "bootstrap/modal"],
 
-  ($, events, dom) ->
+  ($, events) ->
 
     # Runs a modal dialog, invoking a callback if the user selects the OK option. On any form of cancel,
     # there is no callback.
@@ -57,7 +56,7 @@ define ["jquery", "./events", "./dom", "bootstrap/modal"],
         $dialog.find(".modal-footer .btn").first().focus()
 
     # Support for the Confirm mixin
-    $("body").on "click", "[data-confirm-message]:not(.disabled)", ->
+    $("body").on "click", "[data-confirm-message]:not(.disabled)", (event)->
 
       $this = $(this)
 
@@ -70,6 +69,7 @@ define ["jquery", "./events", "./dom", "bootstrap/modal"],
       runDialog
         title: $this.attr "data-confirm-title"
         message: $this.attr "data-confirm-message"
+        okClass: $this.attr "data-confirm-class-ok"
         okLabel: $this.attr "data-confirm-label-ok"
         cancelLabel: $this.attr "data-confirm-label-cancel"
         ok: ->
@@ -82,15 +82,13 @@ define ["jquery", "./events", "./dom", "bootstrap/modal"],
       # Cancel the original click event
       return false
 
-    dom.onDocument "click", "a[data-confirm-message]:not(.disabled)", ->
+    ($ document).on "click", "a[data-confirm-message]:not(.disabled, [data-update-zone], [data-async-trigger])", (event) ->
 
-      # Order of event handlers on an element is not predicatable. From testing, I found this could happen.
-      # A bit ugly.
-      return if @attr "data-update-zone"
+      target = $ event.target
 
       # See note above; this replicates the default behavior of a link element that is lost because
       # of the
-      window.location.href = @attr "href"
+      window.location.href = target.attr "href"
       return false
 
     # Exports:

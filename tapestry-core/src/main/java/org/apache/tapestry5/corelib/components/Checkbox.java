@@ -14,7 +14,7 @@
 
 package org.apache.tapestry5.corelib.components;
 
-import org.apache.tapestry5.MarkupWriter;
+import org.apache.tapestry5.*;
 import org.apache.tapestry5.annotations.AfterRender;
 import org.apache.tapestry5.annotations.BeginRender;
 import org.apache.tapestry5.annotations.Mixin;
@@ -36,6 +36,14 @@ public class Checkbox extends AbstractField
     @Parameter(required = true, autoconnect = true)
     private boolean value;
 
+    /**
+     * The object that will perform input validation. The validate binding prefix is
+     * generally used to provide this object in a declarative fashion.
+     */
+    @Parameter(defaultPrefix = BindingConstants.VALIDATE, allowNull = false)
+    @SuppressWarnings("unchecked")
+    private FieldValidator<Object> validate;
+
     @SuppressWarnings("unused")
     @Mixin
     private RenderDisabled renderDisabled;
@@ -52,7 +60,14 @@ public class Checkbox extends AbstractField
                 "id", getClientId(),
                 "checked", checked ? "checked" : null);
 
+        putPropertyNameIntoBeanValidationContext("value");
+
+        validate.render(writer);
+
+        removePropertyNameFromBeanValidationContext();
+
         resources.renderInformalParameters(writer);
+
 
         decorateInsideField();
     }
@@ -68,10 +83,30 @@ public class Checkbox extends AbstractField
     {
         String postedValue = request.getParameter(controlName);
 
+        boolean translated = postedValue != null;
+
         // record as "true" or "false"
+        validationTracker.recordInput(this, Boolean.toString(translated));
 
-        validationTracker.recordInput(this, Boolean.toString(postedValue != null));
+        putPropertyNameIntoBeanValidationContext("value");
+        try
+        {
+            fieldValidationSupport.validate(translated, resources, validate);
 
-        value = postedValue != null;
+            value = translated;
+        } catch (ValidationException ex)
+        {
+            validationTracker.recordError(this, ex.getMessage());
+        }
+        removePropertyNameFromBeanValidationContext();
+    }
+
+    /**
+     * Computes a default value for the "validate" parameter using
+     * {@link org.apache.tapestry5.services.FieldValidatorDefaultSource}.
+     */
+    final Binding defaultValidate()
+    {
+        return defaultProvider.defaultValidatorBinding("value", resources);
     }
 }

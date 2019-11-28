@@ -12,11 +12,15 @@
 
 package org.apache.tapestry5.integration.app1;
 
-import org.apache.tapestry5.corelib.components.Form;
-import org.testng.annotations.Test;
-
 import java.text.SimpleDateFormat;
 import java.util.Date;
+
+import org.apache.tapestry5.corelib.components.Form;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.ExpectedCondition;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.testng.annotations.Test;
 
 /**
  * Tests for the {@link Form} component as well as many form control components.
@@ -259,7 +263,9 @@ public class FormTests extends App1TestCase
 
         click("css=.x-impact .btn");
 
-        waitForCSSSelectedElementToAppear("div.datePicker");
+        ExpectedCondition datePickerVisible = ExpectedConditions.visibilityOfElementLocated(By.cssSelector("div.datePicker"));
+
+        waitForCondition(datePickerVisible);
         assertEquals(getText("css=td.selected"), "28");
 
         //move to the next month.
@@ -272,7 +278,7 @@ public class FormTests extends App1TestCase
 
         //make sure it's still selected if we navigate back...
         click("css=button.previousButton");
-        waitForCSSSelectedElementToAppear("td.selected");
+        waitForCssSelectorToAppear("td.selected");
 
         click("css=button.nextButton");
 
@@ -294,7 +300,7 @@ public class FormTests extends App1TestCase
         //#3
         click("css=.x-impact .btn");
 
-        waitForCSSSelectedElementToAppear("div.datePicker");
+        waitForCondition(datePickerVisible);
         click("css=div.datePicker .footerTable button");
         waitForInvisible(pickerGoneSelector);
 
@@ -304,13 +310,13 @@ public class FormTests extends App1TestCase
         //#2...
         click("css=.x-impact .btn");
 
-        waitForCSSSelectedElementToAppear("div.datePicker");
+        waitForCondition(datePickerVisible);
         click("css=button.nextButton");
 
         waitForSelectedToBeRemoved();
 
         click("css=div.datePicker .footerTable button");
-        waitForCSSSelectedElementToAppear("td.selected");
+        waitForCssSelectorToAppear("td.selected");
 
         //#1
         click("css=div.datePicker .footerTable button");
@@ -321,7 +327,7 @@ public class FormTests extends App1TestCase
 
         click("css=.x-impact .btn");
 
-        waitForCSSSelectedElementToAppear("div.datePicker");
+        waitForCondition(datePickerVisible);
 
         String noneButton = "//button[text()='None']";
 
@@ -331,9 +337,9 @@ public class FormTests extends App1TestCase
 
         assertFieldValue("asteroidImpact", "");
 
-        click(noneButton);
+        click("css=.x-impact .btn");
 
-        waitForCSSSelectedElementToAppear("div.datePicker");
+        waitForCondition(datePickerVisible);
         assertFalse(isElementPresent("css=td.selected"));
 
         click(noneButton);
@@ -356,7 +362,10 @@ public class FormTests extends App1TestCase
         type("asteroidImpact", "05/28/2046");
 
         click("css=.x-impact .btn");
-        waitForCSSSelectedElementToAppear("div.datePicker");
+
+        ExpectedCondition datePickerVisible = ExpectedConditions.visibilityOfElementLocated(By.cssSelector("div.datePicker"));
+
+        waitForCondition(datePickerVisible);
 
         click("css=.x-impact .btn");
         waitForInvisible("css=div.datePicker");
@@ -364,19 +373,19 @@ public class FormTests extends App1TestCase
         //make sure that clicking somewhere outside the date picker
         //closes it
         click("css=.x-impact .btn");
-        waitForCSSSelectedElementToAppear("div.datePicker");
+        waitForCondition(datePickerVisible);
 
         click("css=h1");
         waitForInvisible("css=div.datePicker");
 
         //also make sure that clicking the month label /doesn't/ close the picker
         click("css=.x-impact .btn");
-        waitForCSSSelectedElementToAppear("div.datePicker");
+        waitForCondition(datePickerVisible);
         click("css=a.topLabel");
-        waitForCSSSelectedElementToAppear("div.labelPopup");
+        waitForCssSelectorToAppear("div.labelPopup");
         click("css=div.labelPopup a");
 
-        waitForCondition("!selenium.isElementPresent('css=div.labelPopup')", PAGE_LOAD_TIMEOUT);
+        waitForInvisible("css=div.labelPopup");
         //It's basically impossible to express "wait until the popup doesn't disappear"
         //Instead, we take advantage of knowing that the datepicker disappears with this bug /almost/
         //immediately after picking the month label, so we sleep the test for a few seconds to provide
@@ -438,26 +447,31 @@ public class FormTests extends App1TestCase
 
         String update = SUBMIT;
 
-        click("css=label:contains('Accounting')");
-
+        webDriver.findElements(By.cssSelector("label")).stream().filter(element-> element.getText().contains("Accounting")).findFirst().get().click();
         clickAndWait(update);
 
         assertTextPresent("Selected department: ACCOUNTING");
 
-        click("css=label:contains('Sales And Marketing')");
+        WebElement salesAndMarketing = webDriver.findElements(By.cssSelector("label")).stream().filter(element-> element.getText().contains("Sales And Marketin")).findFirst().get();
+        scrollIntoView(salesAndMarketing);
+        salesAndMarketing.click();
 
         clickAndWait(update);
 
         assertTextPresent("Selected department: SALES_AND_MARKETING");
 
         // not in a loop ...
-        click("css=label:contains('Temp')");
+        WebElement temp = webDriver.findElements(By.cssSelector("label")).stream().filter(element-> element.getText().contains("Temp")).findFirst().get();
+        scrollIntoView(temp);
+        temp.click();
 
         clickAndWait(update);
 
         assertTextPresent("Selected position: TEMP");
 
-        click("css=label:contains('Lifer')");
+        WebElement lifer = webDriver.findElements(By.cssSelector("label")).stream().filter(element-> element.getText().contains("Lifer")).findFirst().get();
+        scrollIntoView(lifer);
+        lifer.click();
 
         clickAndWait(update);
 
@@ -508,7 +522,7 @@ public class FormTests extends App1TestCase
             assertAttribute(locator, "disabled");
         }
 
-        assertAttribute("css=div.palette .btn@disabled", "disabled");
+        assertAttribute("css=div.palette .btn@disabled", "true");
 
         //TAP5-2078
         clickAndWait("//input[@value='Continue']");
@@ -1250,5 +1264,54 @@ public class FormTests extends App1TestCase
         waitForElementToAppear("validate-in-error");
 
         assertTextPresent("Validate in error");
+    }
+
+    /** TAP5-2075 **/
+    @Test
+    public void validate_checkbox_must_be_checked()
+    {
+        openLinks("Validate Checkbox Must Be Checked");
+
+        clickAndWait(SUBMIT);
+
+        assertTextPresent("You must check Checkbox.");
+
+        check("//input[@type='checkbox']");
+
+        clickAndWait(SUBMIT);
+
+        assertTextPresent("Checkbox's value: true");
+    }
+
+    /** TAP5-2075 **/
+    @Test
+    public void validate_checkbox_must_be_unchecked()
+    {
+        openLinks("Validate Checkbox Must Be Unchecked");
+
+        check("//input[@type='checkbox']");
+
+        clickAndWait(SUBMIT);
+
+        assertTextPresent("You must uncheck Checkbox.");
+
+        uncheck("//input[@type='checkbox']");
+
+        clickAndWait(SUBMIT);
+
+        assertTextPresent("Checkbox's value: false");
+    }
+
+    // TAP5-2204
+    @Test
+    public void select_model_with_auto_security_and_non_persistent_model() throws Exception
+    {
+        openLinks("Select Demo");
+
+        select("month", "label=August");
+
+        clickAndWait(SUBMIT);
+
+        assertTextPresent("Selected month: August");
     }
 }

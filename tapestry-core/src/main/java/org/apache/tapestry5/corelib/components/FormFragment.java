@@ -14,6 +14,7 @@ package org.apache.tapestry5.corelib.components;
 
 import org.apache.tapestry5.*;
 import org.apache.tapestry5.annotations.Environmental;
+import org.apache.tapestry5.annotations.HeartbeatDeferred;
 import org.apache.tapestry5.annotations.Import;
 import org.apache.tapestry5.annotations.Parameter;
 import org.apache.tapestry5.annotations.SupportsInformalParameters;
@@ -156,7 +157,7 @@ public class FormFragment implements ClientElement
     {
         FormSupport formSupport = environment.peekRequired(FormSupport.class);
 
-        clientId = resources.isBound("id") ? idParameter : javascriptSupport.allocateClientId(resources);
+        String clientId = getClientId();
 
         hiddenFieldPositioner = new HiddenFieldPositioner(writer, rules);
 
@@ -237,10 +238,22 @@ public class FormFragment implements ClientElement
 
 
         environment.pop(FormSupport.class);
+
+        resetClientId();
+    }
+
+    @HeartbeatDeferred
+    void resetClientId()
+    {
+        clientId = null;
     }
 
     public String getClientId()
     {
+        if (clientId == null)
+        {
+            clientId = resources.isBound("id") ? idParameter : javascriptSupport.allocateClientId(resources);
+        }
         return clientId;
     }
 }

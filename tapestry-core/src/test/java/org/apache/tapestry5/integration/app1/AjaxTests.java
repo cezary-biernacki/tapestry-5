@@ -37,7 +37,7 @@ public class AjaxTests extends App1TestCase
     {
         openLinks("Autocomplete Mixin Demo");
 
-        type("required", "foo");
+        typeKeys("required", "foo");
 
         clickAndWait(SUBMIT);
 
@@ -284,4 +284,53 @@ public class AjaxTests extends App1TestCase
 
         assertText("message", "Redirected from XHR");
     }
+
+    /**
+     * TAP5-2397
+     */
+    @Test
+    public void add_datefield_in_ajaxformloop()
+    {
+        openLinks("DateField inside AjaxFormLoop");
+
+        click("link=Add row");
+
+        waitForAjaxRequestsToComplete();
+
+        // now the datefield module is loaded and dom.scanner has been invoked
+        // the second insertion is problematic
+
+        click("css=.glyphicon-minus-sign");
+
+        click("link=Add row");
+
+        waitForAjaxRequestsToComplete();
+
+        click("css=.glyphicon-calendar");
+
+        assertTextPresent("Today");
+
+    }
+    
+    @Test
+    public void publishevent() throws InterruptedException
+    {
+        openLinks("@PublishEvent Demo");
+        
+        waitForAjaxRequestsToComplete();
+        
+        final String template = "//table/tbody/tr[%d]/td[%d]";
+        
+        for (int i = 1; i <= 8; i++) {
+            assertEquals(
+                    getText(String.format(template, i, 3)),
+                    getText(String.format(template, i, 4)),
+                    "Row " + i);
+        }
+
+//        // An ugly way of giving time for all the AJAX requests to finish
+//        // without adding more JavaScript for that.
+//        Thread.sleep(3000);
+    }
+    
 }
